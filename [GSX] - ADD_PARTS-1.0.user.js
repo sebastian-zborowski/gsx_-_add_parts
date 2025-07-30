@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         [GSX] - ADD_PARTS
-// @version      1.0
+// @version      1.1
 // @description  Usprawnione dodawanie części - kilka sesji na raz bez commitu
 // @author       Sebastian Zborowski
 // @match        https://gsx2.apple.com/returns*
 // @include      https://gsx2.apple.com/returns*
-
-
+// @updateURL    https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
+// @downloadURL  https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
 // @require      https://code.jquery.com/jquery-3.7.1.min.js
+//@ grant        none
 // ==/UserScript==
 
 //Disclaimer:

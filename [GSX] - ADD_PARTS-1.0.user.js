@@ -498,7 +498,7 @@ function renderSavedCodes() {
         popup.textContent = `🔔 Aktualizacja dostępna dla ${scriptName}: ${remote} (masz ${current})`;
         Object.assign(popup.style, {
         position: 'fixed',
-        bottom: `${20 + index * 100}px`, 
+        bottom: `${35 + index * 100}px`, 
         left: '50%',
         transform: 'translateX(-50%)',
         backgroundColor: '#222',

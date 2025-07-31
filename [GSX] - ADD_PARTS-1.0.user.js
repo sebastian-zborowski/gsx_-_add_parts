@@ -3,7 +3,7 @@
 // @version      1.0
 // @description  Usprawnione dodawanie części - kilka sesji na raz bez commitu
 // @author       Sebastian Zborowski
-// @match        https://gsx2.apple.com*
+// @match        https://gsx2.apple.com
 // @include      https://gsx2.apple.com/returns/new?from=sp_rtn_ppr_open
 // @updateURL    https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
 // @downloadURL  https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
@@ -44,7 +44,14 @@
                 cursor: 'pointer'
             },
             click: function () {
-                window.open('about:blank', '_blank').document.write(localStorageInputPage);
+                const newWin = window.open('about:blank', '_blank');
+                if (newWin) {
+                    newWin.document.open();
+                    newWin.document.write(localStorageInputPage);
+                    newWin.document.close();
+                } else {
+                    alert('Blokada wyskakujących okienek - proszę zezwolić na otwieranie nowych kart.');
+                }
             }
         });
 
@@ -75,6 +82,9 @@
                 const input = $searchInput.get(0);
 
                 let currentIndex = 0;
+
+                // Deklarujemy onCheckboxChange tutaj, żeby nie było w if-bloku
+                let onCheckboxChange = null;
 
                 function searchNext() {
                     if (currentIndex >= hagCodes.length) {
@@ -128,18 +138,23 @@
                         }
                     } else if ($rows.length > 1) {
                         alert(`Znaleziono ${$rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
-                        $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
 
-                        function onCheckboxChange(e) {
+                        // Usuwamy poprzednie nasłuchiwacze, jeśli są
+                        if (onCheckboxChange) {
+                            $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
+                        }
+
+                        onCheckboxChange = function(e) {
                             const checkbox = e.target;
                             if (checkbox.checked) {
                                 $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
                                 currentIndex++;
                                 searchNext();
                             }
-                        }
+                        };
 
                         $rows.find('input[type="checkbox"].custom-checkbox').on('change', onCheckboxChange);
+
                     } else if (retries > 0) {
                         setTimeout(() => checkResults(currentCode, retries - 1), 300);
                     } else {
@@ -438,24 +453,9 @@
 </html>
 `;
 
-    function init() {
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                for (const node of mutation.addedNodes) {
-                    if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
-                        addButtons(node);
-                    }
-                }
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    }
-
-    init();
+    $(document).ready(() => {
+        init();
+    });
 
     // Kontrola wersji alert ---------------------------------------------------------
     (async function() {
@@ -493,7 +493,7 @@
             if (!storedStr) return;
             try {
                 const data = JSON.parse(storedStr);
-                const remoteVer = data?.remote;
+                const remoteVer = data && data.remote;
                 const currentVer = currentVersions[script.name] || '0.0';
 
                 if (remoteVer && compareVersions(remoteVer, currentVer) > 0) {
@@ -509,10 +509,10 @@
             const split2 = v2.split('.').map(Number);
             const length = Math.max(split1.length, split2.length);
             for (let i = 0; i < length; i++) {
-                const a = split1[i] || 0;
-                const b = split2[i] || 0;
-                if (a > b) return 1;
-                if (a < b) return -1;
+                const n1 = split1[i] || 0;
+                const n2 = split2[i] || 0;
+                if (n1 > n2) return 1;
+                if (n1 < n2) return -1;
             }
             return 0;
         }

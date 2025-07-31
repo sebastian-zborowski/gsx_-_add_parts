@@ -3,194 +3,204 @@
 // @version      1.0
 // @description  Usprawnione dodawanie części - kilka sesji na raz bez commitu
 // @author       Sebastian Zborowski
-// @match        https://gsx2.apple.com
+// @match        https://gsx2.apple.com/
+// @include      https://gsx2.apple.com/*
 // @updateURL    https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
 // @downloadURL  https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
+// @require      https://code.jquery.com/jquery-3.7.1.min.js
 // @grant        none
+// @source       https://github.com/sebastian-zborowski
 // ==/UserScript==
 
-(function() {
+(function($) {
     'use strict';
 
     function addButtons(modal) {
         if (!modal || modal.querySelector('#createListButton')) return;
 
-        // Szukamy stopki modalu lub modal jako kontener przycisków
-        const footer = modal.querySelector('.el-dialog__footer');
-        const container = footer || modal;
+        const $modal = $(modal);
+        const $footer = $modal.find('.el-dialog__footer');
 
-        // Kontener na przyciski
-        const buttonContainer = document.createElement('div');
-        Object.assign(buttonContainer.style, {
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '10px',
-            marginTop: '15px',
-            marginBottom: '15px'
-        });
+        const $container = $footer.length ? $footer : $modal;
 
-        // Przycisk NOWA LISTA
-        const createButton = document.createElement('button');
-        createButton.id = 'createListButton';
-        createButton.textContent = 'NOWA LISTA';
-        Object.assign(createButton.style, {
-            padding: '8px 16px',
-            backgroundColor: '#007aff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        });
-        createButton.addEventListener('click', () => {
-            const newWin = window.open('about:blank', '_blank');
-            if (newWin) {
-                newWin.document.open();
-                newWin.document.write(localStorageInputPage);
-                newWin.document.close();
-            } else {
-                alert('Blokada wyskakujących okienek - proszę zezwolić na otwieranie nowych kart.');
+        const $buttonContainer = $('<div>', {
+            css: {
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '10px',
+                marginTop: '15px',
+                marginBottom: '15px'
             }
         });
 
-        // Przycisk WCZYTAJ Z LISTY
-        const loadButton = document.createElement('button');
-        loadButton.id = 'loadFromListButton';
-        loadButton.textContent = 'WCZYTAJ Z LISTY';
-        Object.assign(loadButton.style, {
-            padding: '8px 16px',
-            backgroundColor: '#007aff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+        const $createButton = $('<button>', {
+            id: 'createListButton',
+            text: 'NOWA LISTA',
+            css: {
+                padding: '8px 16px',
+                backgroundColor: '#007aff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+            },
+            click: function () {
+                const newWin = window.open('about:blank', '_blank');
+                if (newWin) {
+                    newWin.document.open();
+                    newWin.document.write(localStorageInputPage);
+                    newWin.document.close();
+                } else {
+                    alert('Blokada wyskakujących okienek - proszę zezwolić na otwieranie nowych kart.');
+                }
+            }
         });
-        loadButton.addEventListener('click', () => {
-            const codes = JSON.parse(localStorage.getItem('GSX_ListCodes') || '[]');
-            const hagCodes = codes.filter(code => code.toUpperCase().startsWith('HAG'));
-            if (hagCodes.length === 0) {
-                alert('Brak kodów zaczynających się od HAG w localStorage');
-                return;
-            }
 
-            const searchInput = document.querySelector('input.el-input__inner[data-tid="parts_selector_searchbox"]');
-            if (!searchInput) {
-                alert('Pole wyszukiwania nie znalezione na stronie');
-                return;
-            }
-
-            let currentIndex = 0;
-            let onCheckboxChange = null;
-
-            function searchNext() {
-                if (currentIndex >= hagCodes.length) {
-                    alert('Dodano wszystkie kody z listy lub zatrzymano.');
+        const $loadButton = $('<button>', {
+            id: 'loadFromListButton',
+            text: 'WCZYTAJ Z LISTY',
+            css: {
+                padding: '8px 16px',
+                backgroundColor: '#007aff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+            },
+            click: function () {
+                const codes = JSON.parse(localStorage.getItem('GSX_ListCodes') || '[]');
+                const hagCodes = codes.filter(code => code.toUpperCase().startsWith('HAG'));
+                if (hagCodes.length === 0) {
+                    alert('Brak kodów zaczynających się od HAG w localStorage');
                     return;
                 }
 
-                const currentCode = hagCodes[currentIndex];
-                searchInput.value = currentCode;
-                searchInput.focus();
-
-                // Wyzwalamy eventy input, change i enter
-                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                searchInput.dispatchEvent(new KeyboardEvent('keydown', {
-                    bubbles: true,
-                    cancelable: true,
-                    key: 'Enter',
-                    code: 'Enter',
-                    keyCode: 13,
-                    which: 13
-                }));
-
-                setTimeout(() => checkResults(currentCode), 500);
-            }
-
-            function checkResults(currentCode, retries = 10) {
-                const rows = Array.from(document.querySelectorAll('div.ag-row[aria-rowindex]:not([style*="display: none"])'));
-                const noResultsSpan = document.querySelector('div.ag-overlay-no-rows-wrapper span.static-table_blank');
-
-                if (noResultsSpan && noResultsSpan.offsetParent !== null && noResultsSpan.textContent.trim() === 'No results found') {
-                    searchInput.blur();
-                    alert(`Kod ${currentCode} nie istnieje w bazie.`);
-                    currentIndex++;
-                    setTimeout(searchNext, 300);
+                const $searchInput = $('input.el-input__inner[data-tid="parts_selector_searchbox"]');
+                if ($searchInput.length === 0) {
+                    alert('Pole wyszukiwania nie znalezione na stronie');
                     return;
                 }
+                const input = $searchInput.get(0);
 
-                if (rows.length === 1) {
-                    const row = rows[0];
-                    const checkbox = row.querySelector('input[type="checkbox"].custom-checkbox');
-                    if (checkbox && !checkbox.checked) {
-                        checkbox.focus();
-                        checkbox.click();
-                        checkbox.blur();
-                        row.classList.add('ag-row-selected');
+                let currentIndex = 0;
+
+                // Deklarujemy onCheckboxChange tutaj, żeby nie było w if-bloku
+                let onCheckboxChange = null;
+
+                function searchNext() {
+                    if (currentIndex >= hagCodes.length) {
+                        alert('Kliknij Add Parts');
+                        return;
+                    }
+
+                    const currentCode = hagCodes[currentIndex];
+                    input.value = currentCode;
+                    input.focus();
+
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+                    setTimeout(() => {
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        setTimeout(() => {
+                            input.dispatchEvent(new KeyboardEvent('keydown', {
+                                bubbles: true,
+                                cancelable: true,
+                                key: 'Enter',
+                                code: 'Enter',
+                                keyCode: 13,
+                                which: 13
+                            }));
+                        }, 50);
+                    }, 50);
+
+                    setTimeout(() => checkResults(currentCode), 600);
+                }
+
+                function checkResults(currentCode, retries = 10) {
+                    const $rows = $('div.ag-row[aria-rowindex]').filter(function() {
+                        return this.offsetParent !== null;
+                    });
+                    const $noResults = $('div.ag-overlay-no-rows-wrapper span.static-table_blank').filter(function() {
+                        return this.offsetParent !== null;
+                    });
+
+                    if ($noResults.length && $noResults.text().trim() === 'No results found') {
+                        input.blur();
+                        alert(`Kod ${currentCode} nie istnieje w bazie.`);
                         currentIndex++;
                         setTimeout(searchNext, 300);
+                        return;
+                    }
+
+                    if ($rows.length === 1) {
+                        const $row = $rows.eq(0);
+                        const $checkbox = $row.find('input[type="checkbox"].custom-checkbox');
+                        if ($checkbox.length && !$checkbox.prop('checked')) {
+                            const checkboxElem = $checkbox.get(0);
+                            checkboxElem.focus();
+                            checkboxElem.click();
+                            checkboxElem.blur();
+                            $row.addClass('ag-row-selected');
+                            currentIndex++;
+                            setTimeout(searchNext, 300);
+                        } else {
+                            currentIndex++;
+                            setTimeout(searchNext, 300);
+                        }
+                    } else if ($rows.length > 1) {
+                        alert(`Znaleziono ${$rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
+
+                        // Usuwamy poprzednie nasłuchiwacze, jeśli są
+                        if (onCheckboxChange) {
+                            $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
+                        }
+
+                        onCheckboxChange = function(e) {
+                            const checkbox = e.target;
+                            if (checkbox.checked) {
+                                $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
+                                currentIndex++;
+                                searchNext();
+                            }
+                        };
+
+                        $rows.find('input[type="checkbox"].custom-checkbox').on('change', onCheckboxChange);
+
+                    } else if (retries > 0) {
+                        setTimeout(() => checkResults(currentCode, retries - 1), 300);
                     } else {
                         currentIndex++;
                         setTimeout(searchNext, 300);
                     }
-                } else if (rows.length > 1) {
-                    alert(`Znaleziono ${rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
-
-                    // Usuwamy stare event listenery jeśli były
-                    if (onCheckboxChange) {
-                        rows.forEach(row => {
-                            const cb = row.querySelector('input[type="checkbox"].custom-checkbox');
-                            if (cb) cb.removeEventListener('change', onCheckboxChange);
-                        });
-                    }
-
-                    onCheckboxChange = function(e) {
-                        if (e.target.checked) {
-                            rows.forEach(row => {
-                                const cb = row.querySelector('input[type="checkbox"].custom-checkbox');
-                                if (cb) cb.removeEventListener('change', onCheckboxChange);
-                            });
-                            currentIndex++;
-                            searchNext();
-                        }
-                    };
-
-                    rows.forEach(row => {
-                        const cb = row.querySelector('input[type="checkbox"].custom-checkbox');
-                        if (cb) cb.addEventListener('change', onCheckboxChange);
-                    });
-
-                } else if (retries > 0) {
-                    setTimeout(() => checkResults(currentCode, retries - 1), 300);
-                } else {
-                    currentIndex++;
-                    setTimeout(searchNext, 300);
                 }
-            }
 
-            searchNext();
+                searchNext();
+            }
         });
 
-        buttonContainer.appendChild(createButton);
-        buttonContainer.appendChild(loadButton);
-        container.appendChild(buttonContainer);
+        $buttonContainer.append($createButton, $loadButton);
+        $container.append($buttonContainer);
     }
 
     function init() {
         const observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                mutation.addedNodes.forEach(node => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
                     if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
-                        addButtons(node);
+                        setTimeout(() => addButtons(node), 100);
                     }
-                });
-            });
+                }
+            }
         });
 
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
     }
 
-    const localStorageInputPage = `
-<!DOCTYPE html>
+    const localStorageInputPage = 
+`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -247,28 +257,43 @@
       text-align: center;
       min-height: 20px;
     }
-    .list {
-      margin-top: 20px;
-      background-color: #4a4a4a;
-      border-radius: 6px;
-      padding: 10px 15px;
-    }
-    .list ul {
-      padding-left: 0;
-      list-style: none;
-      margin: 0;
-    }
-    .list li {
-      margin-bottom: 6px;
-      font-family: monospace;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #5a5a5a;
-      padding: 6px 10px;
-      border-radius: 4px;
-      color: #eee;
-    }
+.list {
+  margin-top: 20px;
+  background-color: #4a4a4a;
+  border-radius: 6px;
+  padding: 10px 15px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.list h3 {
+  grid-column: 1 / -1;
+  margin-bottom: 10px;
+  color: #eaeaea; /* możesz dodać dla lepszej czytelności */
+}
+
+.list ul {
+  padding-left: 0;
+  list-style: none;
+  margin: 0;
+  display: contents;
+}
+
+.list li {
+  margin-bottom: 0;
+  font-family: monospace;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #5a5a5a;
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: #eee;
+  word-break: break-word;
+}
     .delete-btn {
       background: none;
       border: none;
@@ -313,64 +338,91 @@
   </div>
   </div>
   <script>
-    (function(){
-      const input = document.getElementById('listInput');
-      const status = document.getElementById('status');
-      const savedList = document.getElementById('savedCodesList');
+    const input = document.getElementById('listInput');
+    const status = document.getElementById('status');
+    const savedList = document.getElementById('savedCodesList');
 
-      function getSavedCodes() {
-        const data = localStorage.getItem('GSX_ListCodes');
-        return data ? JSON.parse(data) : [];
-      }
+    function getSavedCodes() {
+      const data = localStorage.getItem('GSX_ListCodes');
+      return data ? JSON.parse(data) : [];
+    }
 
-      function saveCode(val) {
-        const codes = getSavedCodes();
-        codes.push(val);
-        localStorage.setItem('GSX_ListCodes', JSON.stringify(codes));
-      }
+    function saveCode(val) {
+      const codes = getSavedCodes();
+      codes.push(val);
+      localStorage.setItem('GSX_ListCodes', JSON.stringify(codes));
+    }
 
-      function renderSavedCodes() {
-        const codes = getSavedCodes();
-        savedList.innerHTML = '';
-        document.getElementById('codesCount').textContent = codes.length;
+    function renderSavedCodes() {
+      const codes = getSavedCodes();
+      savedList.innerHTML = '';
+      document.getElementById('codesCount').textContent = codes.length;
 
-        const counts = {};
-        codes.forEach(code => {
-          const key = code.toUpperCase();
-          counts[key] = (counts[key] || 0) + 1;
-        });
+      const counts = {};
+      codes.forEach(code => {
+        const key = code.toUpperCase();
+        counts[key] = (counts[key] || 0) + 1;
+      });
 
-        const colors = [
-          '#fc8803', '#ff1500', '#5b9124', '#1cb07f', '#ce47ff',
-          '#8c2058', '#2e3e42', '#537354', '#5e5c24', '#473730'
-        ];
+      const colors = [
+        '#fc8803', '#ff1500', '#5b9124', '#1cb07f', '#ce47ff',
+        '#8c2058', '#2e3e42', '#537354', '#5e5c24', '#473730'
+      ];
 
-        const codeColors = {};
-        let colorIndex = 0;
+      const codeColors = {};
+      let colorIndex = 0;
 
-        Object.keys(counts).forEach(code => {
-          if (counts[code] > 1) {
-            codeColors[code] = colors[colorIndex % colors.length];
-            colorIndex++;
+      Object.keys(counts).forEach(code => {
+        if (counts[code] > 1) {
+          codeColors[code] = colors[colorIndex % colors.length];
+          colorIndex++;
+        }
+      });
+
+      const uniqueCodes = [];
+      const duplicateCodesGroups = {};
+
+      codes.forEach(code => {
+        const upper = code.toUpperCase();
+        if (counts[upper] === 1) {
+          uniqueCodes.push(code);
+        } else {
+          if (!duplicateCodesGroups[upper]) duplicateCodesGroups[upper] = [];
+          duplicateCodesGroups[upper].push(code);
+        }
+      });
+
+      uniqueCodes.forEach((code, index) => {
+        const li = document.createElement('li');
+        li.textContent = (index + 1) + '. ' + code;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '❌';
+        deleteBtn.title = 'Delete this HAG code';
+        deleteBtn.addEventListener('click', () => {
+          const updatedCodes = getSavedCodes();
+          const idx = updatedCodes.indexOf(code);
+          if (idx !== -1) {
+            updatedCodes.splice(idx, 1);
+            localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
+            renderSavedCodes();
           }
         });
 
-        const uniqueCodes = [];
-        const duplicateCodesGroups = {};
+        li.appendChild(deleteBtn);
+        savedList.appendChild(li);
+      });
 
-        codes.forEach(code => {
-          const upper = code.toUpperCase();
-          if (counts[upper] === 1) {
-            uniqueCodes.push(code);
-          } else {
-            if (!duplicateCodesGroups[upper]) duplicateCodesGroups[upper] = [];
-            duplicateCodesGroups[upper].push(code);
-          }
-        });
+      let startIndex = uniqueCodes.length + 1;
+      Object.keys(duplicateCodesGroups).forEach(dupCode => {
+        const group = duplicateCodesGroups[dupCode];
+        const bgColor = codeColors[dupCode];
 
-        uniqueCodes.forEach((code, index) => {
+        group.forEach(code => {
           const li = document.createElement('li');
-          li.textContent = (index + 1) + '. ' + code;
+          li.style.backgroundColor = bgColor;
+          li.textContent = (startIndex) + '. ' + code;
 
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'delete-btn';
@@ -388,77 +440,51 @@
 
           li.appendChild(deleteBtn);
           savedList.appendChild(li);
+
+          startIndex++;
         });
+      });
+    }
 
-        let startIndex = uniqueCodes.length + 1;
-        Object.keys(duplicateCodesGroups).forEach(dupCode => {
-          const group = duplicateCodesGroups[dupCode];
-          const bgColor = codeColors[dupCode];
-
-          group.forEach(code => {
-            const li = document.createElement('li');
-            li.style.backgroundColor = bgColor;
-            li.textContent = (startIndex) + '. ' + code;
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '❌';
-            deleteBtn.title = 'Delete this HAG code';
-            deleteBtn.addEventListener('click', () => {
-              const updatedCodes = getSavedCodes();
-              const idx = updatedCodes.indexOf(code);
-              if (idx !== -1) {
-                updatedCodes.splice(idx, 1);
-                localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
-                renderSavedCodes();
-              }
-            });
-
-            li.appendChild(deleteBtn);
-            savedList.appendChild(li);
-
-            startIndex++;
-          });
-        });
-      }
-
-      input.addEventListener('input', () => {
-        const val = input.value.trim();
-        if (val.length >= 10) {
-          const prefix = val.substring(0, 3).toUpperCase();
-          if (prefix === 'HAG') {
-            saveCode(val);
-            status.textContent = 'Zapisano do localStorage ✅';
-            input.value = '';
-            input.focus();
-            renderSavedCodes();
-          } else {
-            status.textContent = 'Błąd. kod musi zaczynać się od: "HAG" ❌';
-          }
+    input.addEventListener('input', () => {
+      const val = input.value.trim();
+      if (val.length >= 10) {
+        const prefix = val.substring(0, 3).toUpperCase();
+        if (prefix === 'HAG') {
+          saveCode(val);
+          status.textContent = 'Zapisano do localStorage ✅';
+          input.value = '';
+          input.focus();
+          renderSavedCodes();
         } else {
-          status.textContent = '';
+          status.textContent = 'Błąd. kod musi zaczynać się od: "HAG" ❌';
         }
-      });
+      } else {
+        status.textContent = '';
+      }
+    });
 
+    renderSavedCodes();
+
+    const clearBtn = document.getElementById('clearAllBtn');
+    clearBtn.addEventListener('click', () => {
+      const codes = getSavedCodes();
+      const filtered = codes.filter(code => !code.toUpperCase().startsWith('HAG'));
+      localStorage.setItem('GSX_ListCodes', JSON.stringify(filtered));
       renderSavedCodes();
-
-      const clearBtn = document.getElementById('clearAllBtn');
-      clearBtn.addEventListener('click', () => {
-        const codes = getSavedCodes();
-        const filtered = codes.filter(code => !code.toUpperCase().startsWith('HAG'));
-        localStorage.setItem('GSX_ListCodes', JSON.stringify(filtered));
-        renderSavedCodes();
-        status.textContent = 'Wyczyszczono wszystkie zapisane kody HAG ✅';
-      });
-    })();
+      status.textContent = 'Wyczyszczono wszystkie zapisane kody HAG ✅';
+    });
   </script>
 </body>
 </html>
 `;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    // Inicjalizacja przy DOMContentLoaded (z fallbackiem)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
         init();
-    });
+    }
 
     // Kontrola wersji alert ---------------------------------------------------------
     (async function() {
@@ -512,46 +538,47 @@
             const split2 = v2.split('.').map(Number);
             const length = Math.max(split1.length, split2.length);
             for (let i = 0; i < length; i++) {
-                const n1 = split1[i] || 0;
-                const n2 = split2[i] || 0;
-                if (n1 > n2) return 1;
-                if (n1 < n2) return -1;
+                const num1 = split1[i] || 0;
+                const num2 = split2[i] || 0;
+                if (num1 > num2) return 1;
+                if (num1 < num2) return -1;
             }
             return 0;
         }
 
-        function showUpdatePopup(scriptName, current, remote, index) {
+        function showUpdatePopup(name, currentVer, remoteVer, count) {
             const popup = document.createElement('div');
-            popup.textContent = `🔔 Aktualizacja dostępna dla ${scriptName}: ${remote} (masz ${current})`;
-            Object.assign(popup.style, {
-                position: 'fixed',
-                bottom: `${35 + index * 100}px`,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                backgroundColor: '#222',
-                color: '#fff',
-                padding: '24px 36px',
-                borderRadius: '16px',
-                fontSize: '18px',
-                zIndex: 9999 + index,
-                boxShadow: '0 0 20px rgba(0,0,0,0.4)',
-                cursor: 'pointer',
-                userSelect: 'none',
-                transition: 'opacity 0.3s ease',
-                opacity: '1',
-                maxWidth: '90%',
-                textAlign: 'center',
-            });
+            popup.style.position = 'fixed';
+            popup.style.top = `${20 + (count * 70)}px`;
+            popup.style.right = '20px';
+            popup.style.backgroundColor = '#ff9800';
+            popup.style.color = '#000';
+            popup.style.padding = '15px 25px';
+            popup.style.borderRadius = '8px';
+            popup.style.fontWeight = 'bold';
+            popup.style.zIndex = 1000000;
+            popup.style.fontFamily = 'Arial, sans-serif';
+            popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.3)';
+            popup.textContent = `[GSX] - ${name}: nowa wersja ${remoteVer} jest dostępna (obecna: ${currentVer}). Odśwież stronę!`;
 
-            popup.addEventListener('click', () => popup.remove());
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.marginLeft = '15px';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '18px';
+            closeBtn.style.border = 'none';
+            closeBtn.style.background = 'transparent';
+            closeBtn.style.color = '#000';
+            closeBtn.style.fontWeight = 'bold';
 
+            closeBtn.onclick = () => {
+                popup.remove();
+            };
+
+            popup.appendChild(closeBtn);
             document.body.appendChild(popup);
-
-            setTimeout(() => {
-                popup.style.opacity = '0';
-                setTimeout(() => popup.remove(), 500);
-            }, 7500);
         }
+
     })();
 
-})();
+})(jQuery.noConflict(true));

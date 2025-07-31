@@ -17,10 +17,15 @@
 //nie przetwarza danych osobowych, a także nie zmienia podstawowego działania strony. Skrypt dodaje kilka automatyzacji, skrótów oraz modyfikacje wizualne, które mają na celu
 //usprawnienie i ułatwienie korzystania z serwisu.
 
-//Ostatnia aktualizacja: 01.08.2025
+//Ostatni update: 01.08.2025 
 
 (function($) {
     'use strict';
+
+  if (location.search.includes('dummy=1')) {
+    console.log('Dummy page detected, skrypt nie wykonuje się tutaj.');
+    return; // przerwij wykonanie skryptu jeżeli strona jest tylko UDMMY do pobrania danych > Zapobieganie zapchaniu pamięci safari
+  }
 
     function addButtons(modal) {
         if (!modal || modal.querySelector('#createListButton')) return;
@@ -96,44 +101,34 @@
 
                 function searchNext() {
                     if (currentIndex >= hagCodes.length) {
-                        alert('Kliknij Add Parts');
+                        alert('Dodano wszystkie kody z listy lub zatrzymano.');
                         return;
                     }
 
                     const currentCode = hagCodes[currentIndex];
                     input.value = currentCode;
                     input.focus();
-
                     input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new KeyboardEvent('keydown', {
+                        bubbles: true,
+                        cancelable: true,
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13
+                    }));
 
-                    setTimeout(() => {
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                        setTimeout(() => {
-                            input.dispatchEvent(new KeyboardEvent('keydown', {
-                                bubbles: true,
-                                cancelable: true,
-                                key: 'Enter',
-                                code: 'Enter',
-                                keyCode: 13,
-                                which: 13
-                            }));
-                        }, 50);
-                    }, 50);
-
-                    setTimeout(() => checkResults(currentCode), 600);
+                    setTimeout(() => checkResults(currentCode), 500);
                 }
 
                 function checkResults(currentCode, retries = 10) {
-                    const $rows = $('div.ag-row[aria-rowindex]').filter(function() {
-                        return this.offsetParent !== null;
-                    });
-                    const $noResults = $('div.ag-overlay-no-rows-wrapper span.static-table_blank').filter(function() {
-                        return this.offsetParent !== null;
-                    });
+                    const $rows = $('div.ag-row[aria-rowindex]:visible');
+                    const $noResults = $('div.ag-overlay-no-rows-wrapper:visible span.static-table_blank');
 
                     if ($noResults.length && $noResults.text().trim() === 'No results found') {
                         input.blur();
-                        alert(`Kod ${currentCode} nie istnieje w bazie.`);
+                        alert(Kod ${currentCode} nie istnieje w bazie.);
                         currentIndex++;
                         setTimeout(searchNext, 300);
                         return;
@@ -155,7 +150,7 @@
                             setTimeout(searchNext, 300);
                         }
                     } else if ($rows.length > 1) {
-                        alert(`Znaleziono ${$rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
+                        alert(Znaleziono ${$rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.);
 
                         // Usuwamy poprzednie nasłuchiwacze, jeśli są
                         if (onCheckboxChange) {
@@ -194,7 +189,7 @@
             for (const mutation of mutations) {
                 for (const node of mutation.addedNodes) {
                     if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
-                        setTimeout(() => addButtons(node), 100);
+                        addButtons(node);
                     }
                 }
             }
@@ -206,8 +201,8 @@
         });
     }
 
-    const localStorageInputPage = 
-`<!DOCTYPE html>
+    const localStorageInputPage =
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -264,43 +259,28 @@
       text-align: center;
       min-height: 20px;
     }
-.list {
-  margin-top: 20px;
-  background-color: #4a4a4a;
-  border-radius: 6px;
-  padding: 10px 15px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.list h3 {
-  grid-column: 1 / -1;
-  margin-bottom: 10px;
-  color: #eaeaea; /* możesz dodać dla lepszej czytelności */
-}
-
-.list ul {
-  padding-left: 0;
-  list-style: none;
-  margin: 0;
-  display: contents;
-}
-
-.list li {
-  margin-bottom: 0;
-  font-family: monospace;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #5a5a5a;
-  padding: 6px 10px;
-  border-radius: 4px;
-  color: #eee;
-  word-break: break-word;
-}
+    .list {
+      margin-top: 20px;
+      background-color: #4a4a4a;
+      border-radius: 6px;
+      padding: 10px 15px;
+    }
+    .list ul {
+      padding-left: 0;
+      list-style: none;
+      margin: 0;
+    }
+    .list li {
+      margin-bottom: 6px;
+      font-family: monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #5a5a5a;
+      padding: 6px 10px;
+      border-radius: 4px;
+      color: #eee;
+    }
     .delete-btn {
       background: none;
       border: none;
@@ -484,14 +464,11 @@
   </script>
 </body>
 </html>
-`;
+;
 
-    // Inicjalizacja przy DOMContentLoaded (z fallbackiem)
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
+    $(document).ready(() => {
         init();
-    }
+    });
 
     // Kontrola wersji alert ---------------------------------------------------------
     (async function() {
@@ -514,12 +491,12 @@
                         name: script.name,
                         remote: version
                     }));
-                    console.log(`[VERSION CONTROL] ${script.name}: ${version}`);
+                    console.log([VERSION CONTROL] ${script.name}: ${version});
                 } else {
-                    console.warn(`[VERSION CONTROL] Nie znaleziono wersji dla: ${script.name}`);
+                    console.warn([VERSION CONTROL] Nie znaleziono wersji dla: ${script.name});
                 }
             } catch (err) {
-                console.warn(`[VERSION CONTROL] Błąd ładowania ${script.name}:`, err);
+                console.warn([VERSION CONTROL] Błąd ładowania ${script.name}:, err);
             }
         }));
 
@@ -536,7 +513,7 @@
                     showUpdatePopup(script.name, currentVer, remoteVer, popupCount++);
                 }
             } catch(e) {
-                console.warn(`[UPDATE CHECK] Błąd sprawdzania wersji dla ${script.name}:`, e);
+                console.warn([UPDATE CHECK] Błąd sprawdzania wersji dla ${script.name}:, e);
             }
         });
 
@@ -545,47 +522,46 @@
             const split2 = v2.split('.').map(Number);
             const length = Math.max(split1.length, split2.length);
             for (let i = 0; i < length; i++) {
-                const num1 = split1[i] || 0;
-                const num2 = split2[i] || 0;
-                if (num1 > num2) return 1;
-                if (num1 < num2) return -1;
+                const n1 = split1[i] || 0;
+                const n2 = split2[i] || 0;
+                if (n1 > n2) return 1;
+                if (n1 < n2) return -1;
             }
             return 0;
         }
 
-        function showUpdatePopup(name, currentVer, remoteVer, count) {
+        function showUpdatePopup(scriptName, current, remote, index) {
             const popup = document.createElement('div');
-            popup.style.position = 'fixed';
-            popup.style.top = `${20 + (count * 70)}px`;
-            popup.style.right = '20px';
-            popup.style.backgroundColor = '#ff9800';
-            popup.style.color = '#000';
-            popup.style.padding = '15px 25px';
-            popup.style.borderRadius = '8px';
-            popup.style.fontWeight = 'bold';
-            popup.style.zIndex = 1000000;
-            popup.style.fontFamily = 'Arial, sans-serif';
-            popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.3)';
-            popup.textContent = `[GSX] - ${name}: nowa wersja ${remoteVer} jest dostępna (obecna: ${currentVer}). Odśwież stronę!`;
+            popup.textContent = 🔔 Aktualizacja dostępna dla ${scriptName}: ${remote} (masz ${current});
+            Object.assign(popup.style, {
+                position: 'fixed',
+                bottom: ${35 + index * 100}px,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: '#222',
+                color: '#fff',
+                padding: '24px 36px',
+                borderRadius: '16px',
+                fontSize: '18px',
+                zIndex: 9999 + index,
+                boxShadow: '0 0 20px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'opacity 0.3s ease',
+                opacity: '1',
+                maxWidth: '90%',
+                textAlign: 'center',
+            });
 
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '×';
-            closeBtn.style.marginLeft = '15px';
-            closeBtn.style.cursor = 'pointer';
-            closeBtn.style.fontSize = '18px';
-            closeBtn.style.border = 'none';
-            closeBtn.style.background = 'transparent';
-            closeBtn.style.color = '#000';
-            closeBtn.style.fontWeight = 'bold';
+            popup.addEventListener('click', () => popup.remove());
 
-            closeBtn.onclick = () => {
-                popup.remove();
-            };
-
-            popup.appendChild(closeBtn);
             document.body.appendChild(popup);
-        }
 
+            setTimeout(() => {
+                popup.style.opacity = '0';
+                setTimeout(() => popup.remove(), 500);
+            }, 7500);
+        }
     })();
 
-})(jQuery.noConflict(true));
+})(window.jQuery);

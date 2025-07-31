@@ -14,119 +14,164 @@
 (function($) {
     'use strict';
 
-function addButtons(modal) {
-    if (!modal || modal.querySelector('#createListButton')) return;
+    function addButtons(modal) {
+        if (!modal || modal.querySelector('#createListButton')) return;
 
-    const $modal = $(modal);
-    const $footer = $modal.find('.el-dialog__footer');
+        const $modal = $(modal);
+        const $footer = $modal.find('.el-dialog__footer');
 
-    const $buttonContainer = $('<div>', {
-        css: {
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '10px',
-            marginTop: '15px',
-            marginBottom: '15px'
-        }
-    });
+        const $container = $footer.length ? $footer : $modal;
 
-    const $createButton = $('<button>', {
-        id: 'createListButton',
-        text: 'NOWA LISTA',
-        css: {
-            padding: '8px 16px',
-            backgroundColor: '#007aff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        },
-        click: function () {
-            window.open('about:blank', '_blank').document.write(localStorageInputPage);
-        }
-    });
-
-    const $loadButton = $('<button>', {
-        id: 'loadFromListButton',
-        text: 'WCZYTAJ Z LISTY',
-        css: {
-            padding: '8px 16px',
-            backgroundColor: '#007aff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-        },
-        click: function () {
-            const codes = JSON.parse(localStorage.getItem('GSX_ListCodes') || '[]');
-            if (!Array.isArray(codes) || codes.length === 0) {
-                alert('Brak zapisanych kodów części!');
-                return;
+        const $buttonContainer = $('<div>', {
+            css: {
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '10px',
+                marginTop: '15px',
+                marginBottom: '15px'
             }
+        });
 
-            const delay = 150;
-            const modal = document.querySelector('.returns-parts-modal');
-            const input = modal.querySelector('input');
-            const searchButton = [...modal.querySelectorAll('button')].find(btn => btn.textContent.includes('Search'));
-
-            if (!input || !searchButton) {
-                alert('Nie znaleziono elementów wyszukiwania');
-                return;
+        const $createButton = $('<button>', {
+            id: 'createListButton',
+            text: 'NOWA LISTA',
+            css: {
+                padding: '8px 16px',
+                backgroundColor: '#007aff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+            },
+            click: function () {
+                window.open('about:blank', '_blank').document.write(localStorageInputPage);
             }
+        });
 
-            const search = (index = 0) => {
-                if (index >= codes.length) return;
+        const $loadButton = $('<button>', {
+            id: 'loadFromListButton',
+            text: 'WCZYTAJ Z LISTY',
+            css: {
+                padding: '8px 16px',
+                backgroundColor: '#007aff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+            },
+            click: function () {
+                const codes = JSON.parse(localStorage.getItem('GSX_ListCodes') || '[]');
+                const hagCodes = codes.filter(code => code.toUpperCase().startsWith('HAG'));
+                if (hagCodes.length === 0) {
+                    alert('Brak kodów zaczynających się od HAG w localStorage');
+                    return;
+                }
 
-                input.value = codes[index];
-                input.dispatchEvent(new Event('input', { bubbles: true }));
+                const $searchInput = $('input.el-input__inner[data-tid="parts_selector_searchbox"]');
+                if ($searchInput.length === 0) {
+                    alert('Pole wyszukiwania nie znalezione na stronie');
+                    return;
+                }
+                const input = $searchInput.get(0);
 
-                setTimeout(() => {
-                    searchButton.click();
+                let currentIndex = 0;
 
-                    setTimeout(() => {
-                        const results = [...modal.querySelectorAll('.el-table__body-wrapper tbody tr')];
-                        if (results.length === 1) {
-                            const checkbox = results[0].querySelector('input[type="checkbox"]');
-                            checkbox?.click();
+                function searchNext() {
+                    if (currentIndex >= hagCodes.length) {
+                        alert('Dodano wszystkie kody z listy lub zatrzymano.');
+                        return;
+                    }
 
-                            setTimeout(() => {
-                                const addButton = [...modal.querySelectorAll('button')].find(b => b.textContent.includes('Add'));
-                                addButton?.click();
+                    const currentCode = hagCodes[currentIndex];
+                    input.value = currentCode;
+                    input.focus();
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.dispatchEvent(new KeyboardEvent('keydown', {
+                        bubbles: true,
+                        cancelable: true,
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13
+                    }));
 
-                                setTimeout(() => search(index + 1), delay);
-                            }, delay);
+                    setTimeout(() => checkResults(currentCode), 500);
+                }
+
+                function checkResults(currentCode, retries = 10) {
+                    const $rows = $('div.ag-row[aria-rowindex]:visible');
+                    const $noResults = $('div.ag-overlay-no-rows-wrapper:visible span.static-table_blank');
+
+                    if ($noResults.length && $noResults.text().trim() === 'No results found') {
+                        input.blur();
+                        alert(`Kod ${currentCode} nie istnieje w bazie.`);
+                        currentIndex++;
+                        setTimeout(searchNext, 300);
+                        return;
+                    }
+
+                    if ($rows.length === 1) {
+                        const $row = $rows.eq(0);
+                        const $checkbox = $row.find('input[type="checkbox"].custom-checkbox');
+                        if ($checkbox.length && !$checkbox.prop('checked')) {
+                            const checkboxElem = $checkbox.get(0);
+                            checkboxElem.focus();
+                            checkboxElem.click();
+                            checkboxElem.blur();
+                            $row.addClass('ag-row-selected');
+                            currentIndex++;
+                            setTimeout(searchNext, 300);
                         } else {
-                            alert(`Nie znaleziono jednoznacznego wyniku dla: ${codes[index]}`);
-                            search(index + 1);
+                            currentIndex++;
+                            setTimeout(searchNext, 300);
                         }
-                    }, delay);
-                }, delay);
-            };
+                    } else if ($rows.length > 1) {
+                        alert(`Znaleziono ${$rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
+                        $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
 
-            search();
-        }
-    });
+                        function onCheckboxChange(e) {
+                            const checkbox = e.target;
+                            if (checkbox.checked) {
+                                $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
+                                currentIndex++;
+                                searchNext();
+                            }
+                        }
 
-    $buttonContainer.append($createButton, $loadButton);
-    $footer.append($buttonContainer);
-}
+                        $rows.find('input[type="checkbox"].custom-checkbox').on('change', onCheckboxChange);
+                    } else if (retries > 0) {
+                        setTimeout(() => checkResults(currentCode, retries - 1), 300);
+                    } else {
+                        currentIndex++;
+                        setTimeout(searchNext, 300);
+                    }
+                }
 
-function init() {
-    const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
-                    addButtons(node);
+                searchNext();
+            }
+        });
+
+        $buttonContainer.append($createButton, $loadButton);
+        $container.append($buttonContainer);
+    }
+
+    function init() {
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
+                        addButtons(node);
+                    }
                 }
             }
-        }
-    });
+        });
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-}
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
 
     const localStorageInputPage = `
 <!DOCTYPE html>
@@ -267,111 +312,98 @@ function init() {
       localStorage.setItem('GSX_ListCodes', JSON.stringify(codes));
     }
 
-function renderSavedCodes() {
-  const codes = getSavedCodes();
-  savedList.innerHTML = '';
-  document.getElementById('codesCount').textContent = codes.length;
+    function renderSavedCodes() {
+      const codes = getSavedCodes();
+      savedList.innerHTML = '';
+      document.getElementById('codesCount').textContent = codes.length;
 
-  // Liczymy wystąpienia (klucze uppercase)
-  const counts = {};
-  codes.forEach(code => {
-    const key = code.toUpperCase();
-    counts[key] = (counts[key] || 0) + 1;
-  });
+      const counts = {};
+      codes.forEach(code => {
+        const key = code.toUpperCase();
+        counts[key] = (counts[key] || 0) + 1;
+      });
 
-  // Kolory dla duplikatów
-  const colors = [
-    '#fc8803', '#ff1500', '#5b9124', '#1cb07f', '#ce47ff',
-    '#8c2058', '#2e3e42', '#537354', '#5e5c24', '#473730'
-  ];
+      const colors = [
+        '#fc8803', '#ff1500', '#5b9124', '#1cb07f', '#ce47ff',
+        '#8c2058', '#2e3e42', '#537354', '#5e5c24', '#473730'
+      ];
 
-  // Mapowanie kodów z duplikatami do koloru
-  const codeColors = {};
-  let colorIndex = 0;
+      const codeColors = {};
+      let colorIndex = 0;
 
-  Object.keys(counts).forEach(code => {
-    if (counts[code] > 1) {
-      codeColors[code] = colors[colorIndex % colors.length];
-      colorIndex++;
-    }
-  });
-
-  // Podziel listę na:
-  // 1. unikatowe kody
-  // 2. kody, które mają duplikaty (w oryginalnej kolejności z zachowaniem wszystkich wystąpień)
-  const uniqueCodes = [];
-  const duplicateCodesGroups = {}; // { kod: [wystąpienia] }
-
-  codes.forEach(code => {
-    const upper = code.toUpperCase();
-    if (counts[upper] === 1) {
-      uniqueCodes.push(code);
-    } else {
-      if (!duplicateCodesGroups[upper]) duplicateCodesGroups[upper] = [];
-      duplicateCodesGroups[upper].push(code);
-    }
-  });
-
-  // Teraz najpierw wypisujemy unikatowe kody (bez koloru)
-  uniqueCodes.forEach((code, index) => {
-    const li = document.createElement('li');
-    li.textContent = (index + 1) + '. ' + code;
-
-    // Przyciski usuwania
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.textContent = '❌';
-    deleteBtn.title = 'Delete this HAG code';
-    deleteBtn.addEventListener('click', () => {
-      const updatedCodes = getSavedCodes();
-      // Znajdujemy indeks tego dokładnego elementu (pierwsze wystąpienie) i usuwamy
-      const idx = updatedCodes.indexOf(code);
-      if (idx !== -1) {
-        updatedCodes.splice(idx, 1);
-        localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
-        renderSavedCodes();
-      }
-    });
-
-    li.appendChild(deleteBtn);
-    savedList.appendChild(li);
-  });
-
-  // Potem wyświetlamy grupy duplikatów – obok siebie (w sensie jeden pod drugim, ale grupowane)
-  let startIndex = uniqueCodes.length + 1;
-  Object.keys(duplicateCodesGroups).forEach(dupCode => {
-    const group = duplicateCodesGroups[dupCode];
-    const bgColor = codeColors[dupCode];
-
-    group.forEach((code, idx) => {
-      const li = document.createElement('li');
-      li.style.backgroundColor = bgColor;
-      li.textContent = (startIndex) + '. ' + code;
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-btn';
-      deleteBtn.textContent = '❌';
-      deleteBtn.title = 'Delete this HAG code';
-      deleteBtn.addEventListener('click', () => {
-        const updatedCodes = getSavedCodes();
-        // Znajdujemy dokładny indeks (pierwsze wystąpienie tego elementu w storage)
-        const idx = updatedCodes.indexOf(code);
-        if (idx !== -1) {
-          updatedCodes.splice(idx, 1);
-          localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
-          renderSavedCodes();
+      Object.keys(counts).forEach(code => {
+        if (counts[code] > 1) {
+          codeColors[code] = colors[colorIndex % colors.length];
+          colorIndex++;
         }
       });
 
-      li.appendChild(deleteBtn);
-      savedList.appendChild(li);
+      const uniqueCodes = [];
+      const duplicateCodesGroups = {};
 
-      startIndex++;
-    });
-  });
-}
+      codes.forEach(code => {
+        const upper = code.toUpperCase();
+        if (counts[upper] === 1) {
+          uniqueCodes.push(code);
+        } else {
+          if (!duplicateCodesGroups[upper]) duplicateCodesGroups[upper] = [];
+          duplicateCodesGroups[upper].push(code);
+        }
+      });
 
+      uniqueCodes.forEach((code, index) => {
+        const li = document.createElement('li');
+        li.textContent = (index + 1) + '. ' + code;
 
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '❌';
+        deleteBtn.title = 'Delete this HAG code';
+        deleteBtn.addEventListener('click', () => {
+          const updatedCodes = getSavedCodes();
+          const idx = updatedCodes.indexOf(code);
+          if (idx !== -1) {
+            updatedCodes.splice(idx, 1);
+            localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
+            renderSavedCodes();
+          }
+        });
+
+        li.appendChild(deleteBtn);
+        savedList.appendChild(li);
+      });
+
+      let startIndex = uniqueCodes.length + 1;
+      Object.keys(duplicateCodesGroups).forEach(dupCode => {
+        const group = duplicateCodesGroups[dupCode];
+        const bgColor = codeColors[dupCode];
+
+        group.forEach(code => {
+          const li = document.createElement('li');
+          li.style.backgroundColor = bgColor;
+          li.textContent = (startIndex) + '. ' + code;
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'delete-btn';
+          deleteBtn.textContent = '❌';
+          deleteBtn.title = 'Delete this HAG code';
+          deleteBtn.addEventListener('click', () => {
+            const updatedCodes = getSavedCodes();
+            const idx = updatedCodes.indexOf(code);
+            if (idx !== -1) {
+              updatedCodes.splice(idx, 1);
+              localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
+              renderSavedCodes();
+            }
+          });
+
+          li.appendChild(deleteBtn);
+          savedList.appendChild(li);
+
+          startIndex++;
+        });
+      });
+    }
 
     input.addEventListener('input', () => {
       const val = input.value.trim();
@@ -406,103 +438,117 @@ function renderSavedCodes() {
 </html>
 `;
 
-
-init();
-
-
-// Kontrola wersji alert ---------------------------------------------------------
-(async function() {
-    const scriptList = [
-        { name: 'ADD_PARTS', url: 'https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js' },
-    ];
-
-    const currentVersions = {
-        ADD_PARTS: '1.0',
-    };
-
-    await Promise.all(scriptList.map(async script => {
-        try {
-            const res = await fetch(script.url);
-            const text = await res.text();
-            const match = text.match(/@version\s+([0-9.]+)/);
-            if (match) {
-                const version = match[1];
-                localStorage.setItem(script.name, JSON.stringify({
-                    name: script.name,
-                    remote: version
-                }));
-                console.log(`[VERSION CONTROL] ${script.name}: ${version}`);
-            } else {
-                console.warn(`[VERSION CONTROL] Nie znaleziono wersji dla: ${script.name}`);
+    function init() {
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
+                        addButtons(node);
+                    }
+                }
             }
-        } catch (err) {
-            console.warn(`[VERSION CONTROL] Błąd ładowania ${script.name}:`, err);
-        }
-    }));
-
-    let popupCount = 0;
-    scriptList.forEach(script => {
-        const storedStr = localStorage.getItem(script.name);
-        if (!storedStr) return;
-        try {
-            const data = JSON.parse(storedStr);
-            const remoteVer = data?.remote;
-            const currentVer = currentVersions[script.name] || '0.0';
-
-            if (remoteVer && compareVersions(remoteVer, currentVer) > 0) {
-                showUpdatePopup(script.name, currentVer, remoteVer, popupCount++);
-            }
-        } catch(e) {
-            console.warn(`[UPDATE CHECK] Błąd sprawdzania wersji dla ${script.name}:`, e);
-        }
-    });
-
-    function compareVersions(v1, v2) {
-        const split1 = v1.split('.').map(Number);
-        const split2 = v2.split('.').map(Number);
-        const length = Math.max(split1.length, split2.length);
-        for (let i = 0; i < length; i++) {
-            const a = split1[i] || 0;
-            const b = split2[i] || 0;
-            if (a > b) return 1;
-            if (a < b) return -1;
-        }
-        return 0;
-    }
-
-    function showUpdatePopup(scriptName, current, remote, index) {
-        const popup = document.createElement('div');
-        popup.textContent = `🔔 Aktualizacja dostępna dla ${scriptName}: ${remote} (masz ${current})`;
-        Object.assign(popup.style, {
-        position: 'fixed',
-        bottom: `${35 + index * 100}px`,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        backgroundColor: '#222',
-        color: '#fff',
-        padding: '24px 36px',
-        borderRadius: '16px',
-        fontSize: '18px',
-        zIndex: 9999 + index,
-        boxShadow: '0 0 20px rgba(0,0,0,0.4)',
-        cursor: 'pointer',
-        userSelect: 'none',
-        transition: 'opacity 0.3s ease',
-        opacity: '1',
-        maxWidth: '90%',
-        textAlign: 'center',
         });
 
-        popup.addEventListener('click', () => popup.remove());
-
-        document.body.appendChild(popup);
-
-        setTimeout(() => {
-            // animacja znikania
-            popup.style.opacity = '0';
-            setTimeout(() => popup.remove(), 500);
-        }, 7500);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
     }
-})();
-// ---------------------------------------------------------------------------------
+
+    init();
+
+    // Kontrola wersji alert ---------------------------------------------------------
+    (async function() {
+        const scriptList = [
+            { name: 'ADD_PARTS', url: 'https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js' },
+        ];
+
+        const currentVersions = {
+            ADD_PARTS: '1.0',
+        };
+
+        await Promise.all(scriptList.map(async script => {
+            try {
+                const res = await fetch(script.url);
+                const text = await res.text();
+                const match = text.match(/@version\s+([0-9.]+)/);
+                if (match) {
+                    const version = match[1];
+                    localStorage.setItem(script.name, JSON.stringify({
+                        name: script.name,
+                        remote: version
+                    }));
+                    console.log(`[VERSION CONTROL] ${script.name}: ${version}`);
+                } else {
+                    console.warn(`[VERSION CONTROL] Nie znaleziono wersji dla: ${script.name}`);
+                }
+            } catch (err) {
+                console.warn(`[VERSION CONTROL] Błąd ładowania ${script.name}:`, err);
+            }
+        }));
+
+        let popupCount = 0;
+        scriptList.forEach(script => {
+            const storedStr = localStorage.getItem(script.name);
+            if (!storedStr) return;
+            try {
+                const data = JSON.parse(storedStr);
+                const remoteVer = data?.remote;
+                const currentVer = currentVersions[script.name] || '0.0';
+
+                if (remoteVer && compareVersions(remoteVer, currentVer) > 0) {
+                    showUpdatePopup(script.name, currentVer, remoteVer, popupCount++);
+                }
+            } catch(e) {
+                console.warn(`[UPDATE CHECK] Błąd sprawdzania wersji dla ${script.name}:`, e);
+            }
+        });
+
+        function compareVersions(v1, v2) {
+            const split1 = v1.split('.').map(Number);
+            const split2 = v2.split('.').map(Number);
+            const length = Math.max(split1.length, split2.length);
+            for (let i = 0; i < length; i++) {
+                const a = split1[i] || 0;
+                const b = split2[i] || 0;
+                if (a > b) return 1;
+                if (a < b) return -1;
+            }
+            return 0;
+        }
+
+        function showUpdatePopup(scriptName, current, remote, index) {
+            const popup = document.createElement('div');
+            popup.textContent = `🔔 Aktualizacja dostępna dla ${scriptName}: ${remote} (masz ${current})`;
+            Object.assign(popup.style, {
+                position: 'fixed',
+                bottom: `${35 + index * 100}px`,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: '#222',
+                color: '#fff',
+                padding: '24px 36px',
+                borderRadius: '16px',
+                fontSize: '18px',
+                zIndex: 9999 + index,
+                boxShadow: '0 0 20px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'opacity 0.3s ease',
+                opacity: '1',
+                maxWidth: '90%',
+                textAlign: 'center',
+            });
+
+            popup.addEventListener('click', () => popup.remove());
+
+            document.body.appendChild(popup);
+
+            setTimeout(() => {
+                popup.style.opacity = '0';
+                setTimeout(() => popup.remove(), 500);
+            }, 7500);
+        }
+    })();
+
 })(window.jQuery);

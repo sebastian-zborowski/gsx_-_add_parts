@@ -4,188 +4,189 @@
 // @description  Usprawnione dodawanie części - kilka sesji na raz bez commitu
 // @author       Sebastian Zborowski
 // @match        https://gsx2.apple.com
-// @include      https://gsx2.apple.com/returns/new?from=sp_rtn_ppr_open
 // @updateURL    https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
 // @downloadURL  https://raw.githubusercontent.com/sebastian-zborowski/gsx_-_add_parts/main/%5BGSX%5D%20-%20ADD_PARTS-1.0.user.js
-// @require      https://code.jquery.com/jquery-3.7.1.min.js
 // @grant        none
 // ==/UserScript==
 
-(function($) {
+(function() {
     'use strict';
 
     function addButtons(modal) {
         if (!modal || modal.querySelector('#createListButton')) return;
 
-        const $modal = $(modal);
-        const $footer = $modal.find('.el-dialog__footer');
+        // Szukamy stopki modalu lub modal jako kontener przycisków
+        const footer = modal.querySelector('.el-dialog__footer');
+        const container = footer || modal;
 
-        const $container = $footer.length ? $footer : $modal;
+        // Kontener na przyciski
+        const buttonContainer = document.createElement('div');
+        Object.assign(buttonContainer.style, {
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '10px',
+            marginTop: '15px',
+            marginBottom: '15px'
+        });
 
-        const $buttonContainer = $('<div>', {
-            css: {
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '10px',
-                marginTop: '15px',
-                marginBottom: '15px'
+        // Przycisk NOWA LISTA
+        const createButton = document.createElement('button');
+        createButton.id = 'createListButton';
+        createButton.textContent = 'NOWA LISTA';
+        Object.assign(createButton.style, {
+            padding: '8px 16px',
+            backgroundColor: '#007aff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+        });
+        createButton.addEventListener('click', () => {
+            const newWin = window.open('about:blank', '_blank');
+            if (newWin) {
+                newWin.document.open();
+                newWin.document.write(localStorageInputPage);
+                newWin.document.close();
+            } else {
+                alert('Blokada wyskakujących okienek - proszę zezwolić na otwieranie nowych kart.');
             }
         });
 
-        const $createButton = $('<button>', {
-            id: 'createListButton',
-            text: 'NOWA LISTA',
-            css: {
-                padding: '8px 16px',
-                backgroundColor: '#007aff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-            },
-            click: function () {
-                const newWin = window.open('about:blank', '_blank');
-                if (newWin) {
-                    newWin.document.open();
-                    newWin.document.write(localStorageInputPage);
-                    newWin.document.close();
-                } else {
-                    alert('Blokada wyskakujących okienek - proszę zezwolić na otwieranie nowych kart.');
-                }
-            }
+        // Przycisk WCZYTAJ Z LISTY
+        const loadButton = document.createElement('button');
+        loadButton.id = 'loadFromListButton';
+        loadButton.textContent = 'WCZYTAJ Z LISTY';
+        Object.assign(loadButton.style, {
+            padding: '8px 16px',
+            backgroundColor: '#007aff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
         });
+        loadButton.addEventListener('click', () => {
+            const codes = JSON.parse(localStorage.getItem('GSX_ListCodes') || '[]');
+            const hagCodes = codes.filter(code => code.toUpperCase().startsWith('HAG'));
+            if (hagCodes.length === 0) {
+                alert('Brak kodów zaczynających się od HAG w localStorage');
+                return;
+            }
 
-        const $loadButton = $('<button>', {
-            id: 'loadFromListButton',
-            text: 'WCZYTAJ Z LISTY',
-            css: {
-                padding: '8px 16px',
-                backgroundColor: '#007aff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-            },
-            click: function () {
-                const codes = JSON.parse(localStorage.getItem('GSX_ListCodes') || '[]');
-                const hagCodes = codes.filter(code => code.toUpperCase().startsWith('HAG'));
-                if (hagCodes.length === 0) {
-                    alert('Brak kodów zaczynających się od HAG w localStorage');
+            const searchInput = document.querySelector('input.el-input__inner[data-tid="parts_selector_searchbox"]');
+            if (!searchInput) {
+                alert('Pole wyszukiwania nie znalezione na stronie');
+                return;
+            }
+
+            let currentIndex = 0;
+            let onCheckboxChange = null;
+
+            function searchNext() {
+                if (currentIndex >= hagCodes.length) {
+                    alert('Dodano wszystkie kody z listy lub zatrzymano.');
                     return;
                 }
 
-                const $searchInput = $('input.el-input__inner[data-tid="parts_selector_searchbox"]');
-                if ($searchInput.length === 0) {
-                    alert('Pole wyszukiwania nie znalezione na stronie');
+                const currentCode = hagCodes[currentIndex];
+                searchInput.value = currentCode;
+                searchInput.focus();
+
+                // Wyzwalamy eventy input, change i enter
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                searchInput.dispatchEvent(new KeyboardEvent('keydown', {
+                    bubbles: true,
+                    cancelable: true,
+                    key: 'Enter',
+                    code: 'Enter',
+                    keyCode: 13,
+                    which: 13
+                }));
+
+                setTimeout(() => checkResults(currentCode), 500);
+            }
+
+            function checkResults(currentCode, retries = 10) {
+                const rows = Array.from(document.querySelectorAll('div.ag-row[aria-rowindex]:not([style*="display: none"])'));
+                const noResultsSpan = document.querySelector('div.ag-overlay-no-rows-wrapper span.static-table_blank');
+
+                if (noResultsSpan && noResultsSpan.offsetParent !== null && noResultsSpan.textContent.trim() === 'No results found') {
+                    searchInput.blur();
+                    alert(`Kod ${currentCode} nie istnieje w bazie.`);
+                    currentIndex++;
+                    setTimeout(searchNext, 300);
                     return;
                 }
-                const input = $searchInput.get(0);
 
-                let currentIndex = 0;
-
-                // Deklarujemy onCheckboxChange tutaj, żeby nie było w if-bloku
-                let onCheckboxChange = null;
-
-                function searchNext() {
-                    if (currentIndex >= hagCodes.length) {
-                        alert('Dodano wszystkie kody z listy lub zatrzymano.');
-                        return;
-                    }
-
-                    const currentCode = hagCodes[currentIndex];
-                    input.value = currentCode;
-                    input.focus();
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                    input.dispatchEvent(new KeyboardEvent('keydown', {
-                        bubbles: true,
-                        cancelable: true,
-                        key: 'Enter',
-                        code: 'Enter',
-                        keyCode: 13,
-                        which: 13
-                    }));
-
-                    setTimeout(() => checkResults(currentCode), 500);
-                }
-
-                function checkResults(currentCode, retries = 10) {
-                    const $rows = $('div.ag-row[aria-rowindex]:visible');
-                    const $noResults = $('div.ag-overlay-no-rows-wrapper:visible span.static-table_blank');
-
-                    if ($noResults.length && $noResults.text().trim() === 'No results found') {
-                        input.blur();
-                        alert(`Kod ${currentCode} nie istnieje w bazie.`);
+                if (rows.length === 1) {
+                    const row = rows[0];
+                    const checkbox = row.querySelector('input[type="checkbox"].custom-checkbox');
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.focus();
+                        checkbox.click();
+                        checkbox.blur();
+                        row.classList.add('ag-row-selected');
                         currentIndex++;
                         setTimeout(searchNext, 300);
-                        return;
-                    }
-
-                    if ($rows.length === 1) {
-                        const $row = $rows.eq(0);
-                        const $checkbox = $row.find('input[type="checkbox"].custom-checkbox');
-                        if ($checkbox.length && !$checkbox.prop('checked')) {
-                            const checkboxElem = $checkbox.get(0);
-                            checkboxElem.focus();
-                            checkboxElem.click();
-                            checkboxElem.blur();
-                            $row.addClass('ag-row-selected');
-                            currentIndex++;
-                            setTimeout(searchNext, 300);
-                        } else {
-                            currentIndex++;
-                            setTimeout(searchNext, 300);
-                        }
-                    } else if ($rows.length > 1) {
-                        alert(`Znaleziono ${$rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
-
-                        // Usuwamy poprzednie nasłuchiwacze, jeśli są
-                        if (onCheckboxChange) {
-                            $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
-                        }
-
-                        onCheckboxChange = function(e) {
-                            const checkbox = e.target;
-                            if (checkbox.checked) {
-                                $rows.find('input[type="checkbox"].custom-checkbox').off('change', onCheckboxChange);
-                                currentIndex++;
-                                searchNext();
-                            }
-                        };
-
-                        $rows.find('input[type="checkbox"].custom-checkbox').on('change', onCheckboxChange);
-
-                    } else if (retries > 0) {
-                        setTimeout(() => checkResults(currentCode, retries - 1), 300);
                     } else {
                         currentIndex++;
                         setTimeout(searchNext, 300);
                     }
-                }
+                } else if (rows.length > 1) {
+                    alert(`Znaleziono ${rows.length} elementów dla kodu ${currentCode}. Proszę zaznacz ręcznie.`);
 
-                searchNext();
+                    // Usuwamy stare event listenery jeśli były
+                    if (onCheckboxChange) {
+                        rows.forEach(row => {
+                            const cb = row.querySelector('input[type="checkbox"].custom-checkbox');
+                            if (cb) cb.removeEventListener('change', onCheckboxChange);
+                        });
+                    }
+
+                    onCheckboxChange = function(e) {
+                        if (e.target.checked) {
+                            rows.forEach(row => {
+                                const cb = row.querySelector('input[type="checkbox"].custom-checkbox');
+                                if (cb) cb.removeEventListener('change', onCheckboxChange);
+                            });
+                            currentIndex++;
+                            searchNext();
+                        }
+                    };
+
+                    rows.forEach(row => {
+                        const cb = row.querySelector('input[type="checkbox"].custom-checkbox');
+                        if (cb) cb.addEventListener('change', onCheckboxChange);
+                    });
+
+                } else if (retries > 0) {
+                    setTimeout(() => checkResults(currentCode, retries - 1), 300);
+                } else {
+                    currentIndex++;
+                    setTimeout(searchNext, 300);
+                }
             }
+
+            searchNext();
         });
 
-        $buttonContainer.append($createButton, $loadButton);
-        $container.append($buttonContainer);
+        buttonContainer.appendChild(createButton);
+        buttonContainer.appendChild(loadButton);
+        container.appendChild(buttonContainer);
     }
 
     function init() {
         const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                for (const node of mutation.addedNodes) {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1 && node.classList.contains('returns-parts-modal')) {
                         addButtons(node);
                     }
-                }
-            }
+                });
+            });
         });
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     const localStorageInputPage = `
@@ -312,91 +313,64 @@
   </div>
   </div>
   <script>
-    const input = document.getElementById('listInput');
-    const status = document.getElementById('status');
-    const savedList = document.getElementById('savedCodesList');
+    (function(){
+      const input = document.getElementById('listInput');
+      const status = document.getElementById('status');
+      const savedList = document.getElementById('savedCodesList');
 
-    function getSavedCodes() {
-      const data = localStorage.getItem('GSX_ListCodes');
-      return data ? JSON.parse(data) : [];
-    }
+      function getSavedCodes() {
+        const data = localStorage.getItem('GSX_ListCodes');
+        return data ? JSON.parse(data) : [];
+      }
 
-    function saveCode(val) {
-      const codes = getSavedCodes();
-      codes.push(val);
-      localStorage.setItem('GSX_ListCodes', JSON.stringify(codes));
-    }
+      function saveCode(val) {
+        const codes = getSavedCodes();
+        codes.push(val);
+        localStorage.setItem('GSX_ListCodes', JSON.stringify(codes));
+      }
 
-    function renderSavedCodes() {
-      const codes = getSavedCodes();
-      savedList.innerHTML = '';
-      document.getElementById('codesCount').textContent = codes.length;
+      function renderSavedCodes() {
+        const codes = getSavedCodes();
+        savedList.innerHTML = '';
+        document.getElementById('codesCount').textContent = codes.length;
 
-      const counts = {};
-      codes.forEach(code => {
-        const key = code.toUpperCase();
-        counts[key] = (counts[key] || 0) + 1;
-      });
+        const counts = {};
+        codes.forEach(code => {
+          const key = code.toUpperCase();
+          counts[key] = (counts[key] || 0) + 1;
+        });
 
-      const colors = [
-        '#fc8803', '#ff1500', '#5b9124', '#1cb07f', '#ce47ff',
-        '#8c2058', '#2e3e42', '#537354', '#5e5c24', '#473730'
-      ];
+        const colors = [
+          '#fc8803', '#ff1500', '#5b9124', '#1cb07f', '#ce47ff',
+          '#8c2058', '#2e3e42', '#537354', '#5e5c24', '#473730'
+        ];
 
-      const codeColors = {};
-      let colorIndex = 0;
+        const codeColors = {};
+        let colorIndex = 0;
 
-      Object.keys(counts).forEach(code => {
-        if (counts[code] > 1) {
-          codeColors[code] = colors[colorIndex % colors.length];
-          colorIndex++;
-        }
-      });
-
-      const uniqueCodes = [];
-      const duplicateCodesGroups = {};
-
-      codes.forEach(code => {
-        const upper = code.toUpperCase();
-        if (counts[upper] === 1) {
-          uniqueCodes.push(code);
-        } else {
-          if (!duplicateCodesGroups[upper]) duplicateCodesGroups[upper] = [];
-          duplicateCodesGroups[upper].push(code);
-        }
-      });
-
-      uniqueCodes.forEach((code, index) => {
-        const li = document.createElement('li');
-        li.textContent = (index + 1) + '. ' + code;
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.textContent = '❌';
-        deleteBtn.title = 'Delete this HAG code';
-        deleteBtn.addEventListener('click', () => {
-          const updatedCodes = getSavedCodes();
-          const idx = updatedCodes.indexOf(code);
-          if (idx !== -1) {
-            updatedCodes.splice(idx, 1);
-            localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
-            renderSavedCodes();
+        Object.keys(counts).forEach(code => {
+          if (counts[code] > 1) {
+            codeColors[code] = colors[colorIndex % colors.length];
+            colorIndex++;
           }
         });
 
-        li.appendChild(deleteBtn);
-        savedList.appendChild(li);
-      });
+        const uniqueCodes = [];
+        const duplicateCodesGroups = {};
 
-      let startIndex = uniqueCodes.length + 1;
-      Object.keys(duplicateCodesGroups).forEach(dupCode => {
-        const group = duplicateCodesGroups[dupCode];
-        const bgColor = codeColors[dupCode];
+        codes.forEach(code => {
+          const upper = code.toUpperCase();
+          if (counts[upper] === 1) {
+            uniqueCodes.push(code);
+          } else {
+            if (!duplicateCodesGroups[upper]) duplicateCodesGroups[upper] = [];
+            duplicateCodesGroups[upper].push(code);
+          }
+        });
 
-        group.forEach(code => {
+        uniqueCodes.forEach((code, index) => {
           const li = document.createElement('li');
-          li.style.backgroundColor = bgColor;
-          li.textContent = (startIndex) + '. ' + code;
+          li.textContent = (index + 1) + '. ' + code;
 
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'delete-btn';
@@ -414,46 +388,75 @@
 
           li.appendChild(deleteBtn);
           savedList.appendChild(li);
-
-          startIndex++;
         });
-      });
-    }
 
-    input.addEventListener('input', () => {
-      const val = input.value.trim();
-      if (val.length >= 10) {
-        const prefix = val.substring(0, 3).toUpperCase();
-        if (prefix === 'HAG') {
-          saveCode(val);
-          status.textContent = 'Zapisano do localStorage ✅';
-          input.value = '';
-          input.focus();
-          renderSavedCodes();
-        } else {
-          status.textContent = 'Błąd. kod musi zaczynać się od: "HAG" ❌';
-        }
-      } else {
-        status.textContent = '';
+        let startIndex = uniqueCodes.length + 1;
+        Object.keys(duplicateCodesGroups).forEach(dupCode => {
+          const group = duplicateCodesGroups[dupCode];
+          const bgColor = codeColors[dupCode];
+
+          group.forEach(code => {
+            const li = document.createElement('li');
+            li.style.backgroundColor = bgColor;
+            li.textContent = (startIndex) + '. ' + code;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '❌';
+            deleteBtn.title = 'Delete this HAG code';
+            deleteBtn.addEventListener('click', () => {
+              const updatedCodes = getSavedCodes();
+              const idx = updatedCodes.indexOf(code);
+              if (idx !== -1) {
+                updatedCodes.splice(idx, 1);
+                localStorage.setItem('GSX_ListCodes', JSON.stringify(updatedCodes));
+                renderSavedCodes();
+              }
+            });
+
+            li.appendChild(deleteBtn);
+            savedList.appendChild(li);
+
+            startIndex++;
+          });
+        });
       }
-    });
 
-    renderSavedCodes();
+      input.addEventListener('input', () => {
+        const val = input.value.trim();
+        if (val.length >= 10) {
+          const prefix = val.substring(0, 3).toUpperCase();
+          if (prefix === 'HAG') {
+            saveCode(val);
+            status.textContent = 'Zapisano do localStorage ✅';
+            input.value = '';
+            input.focus();
+            renderSavedCodes();
+          } else {
+            status.textContent = 'Błąd. kod musi zaczynać się od: "HAG" ❌';
+          }
+        } else {
+          status.textContent = '';
+        }
+      });
 
-    const clearBtn = document.getElementById('clearAllBtn');
-    clearBtn.addEventListener('click', () => {
-      const codes = getSavedCodes();
-      const filtered = codes.filter(code => !code.toUpperCase().startsWith('HAG'));
-      localStorage.setItem('GSX_ListCodes', JSON.stringify(filtered));
       renderSavedCodes();
-      status.textContent = 'Wyczyszczono wszystkie zapisane kody HAG ✅';
-    });
+
+      const clearBtn = document.getElementById('clearAllBtn');
+      clearBtn.addEventListener('click', () => {
+        const codes = getSavedCodes();
+        const filtered = codes.filter(code => !code.toUpperCase().startsWith('HAG'));
+        localStorage.setItem('GSX_ListCodes', JSON.stringify(filtered));
+        renderSavedCodes();
+        status.textContent = 'Wyczyszczono wszystkie zapisane kody HAG ✅';
+      });
+    })();
   </script>
 </body>
 </html>
 `;
 
-    $(document).ready(() => {
+    document.addEventListener('DOMContentLoaded', () => {
         init();
     });
 
@@ -551,4 +554,4 @@
         }
     })();
 
-})(window.jQuery);
+})();

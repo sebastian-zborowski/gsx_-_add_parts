@@ -160,108 +160,111 @@
 <head>
   <meta charset="UTF-8" />
   <title>NOWA HAG LISTA</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #2c2c2c;
-      color: #f0f0f0;
-      padding: 20px;
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .copyright {
-      margin-bottom:15px;
-      text-align: center;
-      color: #3a3a3a;
-      margin-top: 30px;
-      font-size: 14px;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-    }
-    .container {
-      width: 50%;
-      min-width: 300px;
-      margin-left: 25%;
-      margin-right: 25%;
-      background-color: #3a3a3a;
-      padding: 20px 30px;
-      border-radius: 8px;
-      box-sizing: border-box;
-      box-shadow: 0 0 10px rgba(0,0,0,0.7);
-    }
-    h2, h3 {
-      text-align: center;
-      margin-top: 0;
-      color: #eaeaea;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      box-sizing: border-box;
-      border-radius: 4px;
-      border: none;
-      margin-top: 10px;
-    }
-    .info {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #ccc;
-      text-align: center;
-      min-height: 20px;
-    }
-    .list {
-      margin-top: 20px;
-      background-color: #4a4a4a;
-      border-radius: 6px;
-      padding: 10px 15px;
-    }
-    .list ul {
-      padding-left: 0;
-      list-style: none;
-      margin: 0;
-    }
-    .list li {
-      margin-bottom: 6px;
-      font-family: monospace;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #5a5a5a;
-      padding: 6px 10px;
-      border-radius: 4px;
-      color: #eee;
-    }
-    .delete-btn {
-      background: none;
-      border: none;
-      color: #ff6b6b;
-      cursor: pointer;
-      font-size: 18px;
-      transition: color 0.3s ease;
-    }
-    .delete-btn:hover {
-      color: #ff3b30;
-    }
-    #clearAllBtn {
-      display: block;
-      margin: 20px auto 0 auto;
-      padding: 12px 24px;
-      background-color: #ff3b30;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 16px;
-      transition: background-color 0.3s ease;
-    }
-    #clearAllBtn:hover {
-      background-color: #e02922;
-    }
-  </style>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #2c2c2c;
+    color: #f0f0f0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+  .copyright {
+    margin-bottom: 15px;
+    text-align: center;
+    color: #3a3a3a;
+    margin-top: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+  }
+  .container {
+    width: 50%;
+    min-width: 300px;
+    margin-left: 25%;
+    margin-right: 25%;
+    background-color: #3a3a3a;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    box-shadow: 0 0 10px rgba(0,0,0,0.7);
+  }
+  h2, h3 {
+    text-align: center;
+    margin-top: 0;
+    color: #eaeaea;
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: none;
+    margin-top: 10px;
+  }
+  .info {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #ccc;
+    text-align: center;
+    min-height: 20px;
+  }
+  .list {
+    margin-top: 20px;
+    background-color: #4a4a4a;
+    border-radius: 6px;
+    padding: 10px 15px;
+  }
+  .list ul {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding-left: 0;
+    list-style: none;
+    margin: 0;
+  }
+  .list li {
+    margin-bottom: 0;
+    font-family: monospace;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #5a5a5a;
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: #eee;
+  }
+  .delete-btn {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 18px;
+    transition: color 0.3s ease;
+  }
+  .delete-btn:hover {
+    color: #ff3b30;
+  }
+  #clearAllBtn {
+    display: block;
+    margin: 20px auto 0 auto;
+    padding: 12px 24px;
+    background-color: #ff3b30;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+  }
+  #clearAllBtn:hover {
+    background-color: #e02922;
+  }
+</style>
 </head>
 <body>
   <div class="container">

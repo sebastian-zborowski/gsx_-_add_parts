@@ -12,17 +12,25 @@
 // @source       https://github.com/sebastian-zborowski
 // ==/UserScript==
 
-//Disclaimer:
-//Niniejszy skrypt został utworzony metodą Vibecodingu. Nie ingeruje trwale w oryginalne strony internetowe, nie odwołuje się do danych prywatnych ani chronionych przepisami RODO,
-//nie przetwarza danych osobowych, a także nie zmienia podstawowego działania strony. Skrypt dodaje kilka automatyzacji, skrótów oraz modyfikacje wizualne, które mają na celu
-//usprawnienie i ułatwienie korzystania z serwisu.
-
-//Ostatnia aktualizacja 01.08.2025
-
 (function($) {
     'use strict';
 
-checkForUpdate('[GSX]-ADD_PARTS', '[GSX]-ADD_PARTS');
+    function waitForElement(selector, timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            const interval = 100;
+            let elapsed = 0;
+
+            const check = () => {
+                const el = document.querySelector(selector);
+                if (el) return resolve(el);
+                elapsed += interval;
+                if (elapsed >= timeout) return reject('Element not found: ' + selector);
+                setTimeout(check, interval);
+            };
+
+            check();
+        });
+    }
 
     function addButtons() {
         const $modal = $('.el-dialog.returns-parts-modal');
@@ -57,7 +65,10 @@ checkForUpdate('[GSX]-ADD_PARTS', '[GSX]-ADD_PARTS');
                 let currentIndex = 0;
 
                 function searchNext() {
-                    if (currentIndex >= hagCodes.length) { alert('Nie trafiłem w guzik "Add Selected". No kliknij no...'); return; }
+                    if (currentIndex >= hagCodes.length) {
+                        alert('Nie trafiłem w guzik "Add Selected". No kliknij no...');
+                        return;
+                    }
 
                     const currentCode = hagCodes[currentIndex];
                     input.value = currentCode;
@@ -132,7 +143,16 @@ checkForUpdate('[GSX]-ADD_PARTS', '[GSX]-ADD_PARTS');
         }
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    (async function init() {
+        if (!window.location.href.includes('/returns/new?from=sp_rtn_ppr_open')) return;
+
+        try {
+            await waitForElement('.el-dialog.returns-parts-modal');
+            observer.observe(document.body, { childList: true, subtree: true });
+        } catch (e) {
+            console.warn('[GSX - ADD_PARTS] Nie znaleziono elementu .returns-parts-modal:', e);
+        }
+    })();
 
     const localStorageInputPage = `
 <!DOCTYPE html>

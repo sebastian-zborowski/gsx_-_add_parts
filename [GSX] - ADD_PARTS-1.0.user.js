@@ -22,12 +22,6 @@
 (function($) {
     'use strict';
 
-// Kontrola wersji alert ---------------------------------------------------------
-    const SCRIPT_NAME = 'ADD_PARTS';
-    const CURRENT_VERSION = '1.0';
-// -------------------------------------------------------------------------------
-
-
 checkForUpdate('[GSX]-ADD_PARTS', '[GSX]-ADD_PARTS');
 
     function addButtons() {
@@ -426,11 +420,6 @@ function renderSavedCodes() {
     ];
 
     const currentVersions = {
-        VERSION_CONTROL_SYSTEM: '1.0',
-        PASTE_LINK: '1.0',
-        INTERFACE_TWEAKS: '1.0',
-        PHOTO_PREVIEW: '0.8',
-        'ACTION-REQUIRED': '1.0',
         ADD_PARTS: '1.0',
     };
 

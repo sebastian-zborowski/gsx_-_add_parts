@@ -27,6 +27,15 @@
     return; // przerwij wykonanie skryptu jeżeli strona jest tylko UDMMY do pobrania danych > Zapobieganie zapchaniu pamięci safari
   }
 
+    const urlA = 'https://raw.githubusercontent.com/sebastian-zborowski/ast2_-_paste_link/main/iSpot-safetykeyA.js';
+    const urlB = 'https://raw.githubusercontent.com/sebastian-zborowski/ast2_-_paste_link/main/iSpot-safetykeyB.js';
+    try {
+        const [resA, resB] = await Promise.all([fetch(urlA),fetch(urlB)]);
+        if (!resA.ok || !resB.ok) throw new Error('Failed to fetch one of the files.');
+        const [textA, textB] = await Promise.all([resA.text(),resB.text()]);
+        if (textA !== textB) {return;}console.log("Script Execution Failure...");
+    } catch (err) {console.error("cript Execution Failure..., err);return;}
+
     function addButtons(modal) {
         if (!modal || modal.querySelector('#createListButton')) return;
 

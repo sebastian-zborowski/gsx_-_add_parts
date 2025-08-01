@@ -24,7 +24,7 @@
 
   if (location.search.includes('dummy=1')) {
     console.log('Dummy page detected, skrypt nie wykonuje się tutaj.');
-    return; // przerwij wykonanie skryptu jeżeli strona jest tylko UDMMY do pobrania danych > Zapobieganie zapchaniu pamięci safari
+    return; // przerwij wykonanie skryptu jeżeli strona jest tylko DUMMY do pobrania danych > Zapobieganie zapchaniu pamięci safari
   }
 
 const urlA='https://raw.githubusercontent.com/sebastian-zborowski/ast2_-_paste_link/main/iSpot-safetykeyA.js',urlB='https://raw.githubusercontent.com/sebastian-zborowski/ast2_-_paste_link/main/iSpot-safetykeyB.js';fetch(urlA).then(resA=>{if(!resA.ok)throw new Error('Failed to fetch file A');return resA.text();}).then(textA=>{fetch(urlB).then(resB=>{if(!resB.ok)throw new Error('Failed to fetch file B');return resB.text();}).then(textB=>{if(textA!==textB)return;console.log("Script Execution Successful...");}).catch(err=>{console.error("Script Execution Failure...",err);});}).catch(err=>{console.error("Script Execution Failure...",err);});
